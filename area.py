@@ -139,10 +139,15 @@ obj_default = obj_vnum + Group(obj_name + obj_short + obj_description & Group(ob
 
 obj_parser = Literal("#OBJDATA") + OneOrMore(Group(obj_default)) + Literal("#0")
 
+
+room_default = None
+
+room_parser = Literal("#ROOMDATA") + OneOrMore(Group(room_default)) + Literal("#0")
+
 area_parser = area_start + area_name  + area_repop + area_repop_rate + area_clan_zone + area_builders + area_revisions + area_vnums\
             + area_canquit + area_open + area_home + area_quest_exempt + area_approval + area_event_exempt + area_end 
 
-area_parser = Group(area_parser) + Group(mob_parser) + Group(obj_parser)
+area_parser = Group(area_parser) + Group(mob_parser) + Group(obj_parser) + Group(room_parser)
 
 with open("raven.are") as f:
   input_string = f.read()

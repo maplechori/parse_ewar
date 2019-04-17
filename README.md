@@ -1,2 +1,3 @@
-# parse_ewar
-Parsing Everwar MUD Files
+# PARSE EmlenMUD
+
+Parser for Everwar Emlen MUD .are files

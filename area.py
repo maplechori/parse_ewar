@@ -107,19 +107,51 @@ mob_default = mob_vnum + Group(mob_name + mob_short + mob_long & Group(mob_optio
 
 mob_parser = Literal("#MOBDATA") + ZeroOrMore(mob_default) + Literal("#0")
 
-area_parser = area_start + area_name  + area_repop + area_repop_rate + area_clan_zone + area_builders + area_revisions + area_vnums\
-        + area_canquit + area_open + area_home + area_quest_exempt + area_approval + area_event_exempt + area_end + mob_parser
+obj_vnum = Suppress(Literal("#")) + Word(nums)
+obj_name = Suppress(Literal("Name")) + Regex("[^~]*") + tilde
+obj_short = Suppress(Literal("Short")) + Regex("[^~]*", flags=re.MULTILINE) + tilde
+obj_description = Suppress(Literal("Descr")) + Regex("[^~]*", flags=re.MULTILINE) + tilde
+obj_type = Suppress(Literal("Type")) + Word(nums)
 
-area_parser = Group(area_parser)
+obj_extra = Suppress(Literal("Extra")) + Word(nums)
+obj_wear = Suppress(Literal("Wear")) + Word(nums)
+obj_weight = Suppress(Literal("Weight")) + Word(nums)
+obj_cost = Suppress(Literal("Cost")) + Word(nums)
+obj_shardcost = Suppress(Literal("Shardcost")) + Word(nums)
+obj_usespell = Suppress(Literal("Usespell")) + Word(nums)
+obj_extradescr = Suppress(Literal("ExtraDescr")) + Regex("[^~]*",flags=re.MULTILINE) + tilde + Regex("[^~]*", flags=re.MULTILINE) + tilde
+
+obj_affect = Suppress(Literal("Affect")) + OneOrMore(Word(nums))
+obj_values = Suppress(Literal("Values")) + OneOrMore(Word(nums))
+
+obj_options = Optional(obj_type) &\
+              Optional(obj_extra) &\
+              Optional(obj_wear) &\
+              Optional(obj_weight) &\
+              Optional(obj_cost) &\
+              Optional(obj_shardcost) &\
+              Optional(ZeroOrMore(obj_affect)) &\
+              Optional(obj_values) &\
+              Optional(obj_usespell) &\
+              Optional(obj_extradescr)
+
+obj_default = obj_vnum + Group(obj_name + obj_short + obj_description & Group(obj_options)) + mob_end
+
+obj_parser = Literal("#OBJDATA") + OneOrMore(Group(obj_default)) + Literal("#0")
+
+area_parser = area_start + area_name  + area_repop + area_repop_rate + area_clan_zone + area_builders + area_revisions + area_vnums\
+            + area_canquit + area_open + area_home + area_quest_exempt + area_approval + area_event_exempt + area_end 
+
+area_parser = Group(area_parser) + Group(mob_parser) + Group(obj_parser)
 
 with open("raven.are") as f:
   input_string = f.read()
  
   try:
-    result =  area_parser.parseString(input_string, parseAll=False)
+    result =  area_parser.parseString(input_string, parseAll=True)
     print("== area ==")
-    #for i,k  in result.area.items():
-    #  print(i,k)
+    for i,k  in result.area.items():
+      print(i,k)
 
     #print("== mobs ==")
     #for i,k in result.mob_list.items():

@@ -5,7 +5,7 @@ import re
 
 tilde = Suppress(Literal("~"))
 areadata = "#AREADATA"
-areaend = "End"
+end = "End"
 ending = "#$"
 space=White(' ',exact=1)
 newline=White('\n',exact=1)
@@ -24,7 +24,7 @@ area_home = Suppress(Literal("Homeland")) + Word(nums)
 area_quest_exempt = Suppress(Literal("QuestExempt")) + Word(nums)
 area_approval = Suppress(Literal('Approval')) + Word(nums)
 area_event_exempt = Suppress(Literal('EventExempt')) + Word(nums)
-area_end = Suppress(Literal(areaend))
+end = Suppress(Literal(end))
 
 mob_data = "#MOBDATA"
 mob_start = Suppress(Literal(mob_data)) 
@@ -59,7 +59,6 @@ mob_type = Suppress(Literal("MobType")) + Word(nums)
 mob_sex = Suppress(Literal("Sex")) + Word(nums)
 mob_level = Suppress(Literal("Level")) + Word(nums)
 mob_nheight = Suppress(Literal("NHeight")) + Word(nums)
-mob_end =  Suppress(Literal("End")) 
 mob_money = Suppress(Literal("Money")) + Word(nums)
 mob_spec = Suppress(Literal("Spec")) + Regex("[^\s]*")
 mob_warrior = Suppress(Literal("BWarrior_P")) + Word(nums)
@@ -103,7 +102,7 @@ mob_options =   Optional(mob_description) &\
                 Optional(mob_shopU1) &\
                 Optional(mob_level) 
 
-mob_default = mob_vnum + Group(mob_name + mob_short + mob_long & Group(mob_options)) + mob_end 
+mob_default = mob_vnum + Group(mob_name + mob_short + mob_long & Group(mob_options)) + end 
 
 mob_parser = Literal("#MOBDATA") + ZeroOrMore(mob_default) + Literal("#0")
 
@@ -135,28 +134,50 @@ obj_options = Optional(obj_type) &\
               Optional(obj_usespell) &\
               Optional(obj_extradescr)
 
-obj_default = obj_vnum + Group(obj_name + obj_short + obj_description & Group(obj_options)) + mob_end
+obj_default = obj_vnum + Group(obj_name + obj_short + obj_description & Group(obj_options)) + end
 
 obj_parser = Literal("#OBJDATA") + OneOrMore(Group(obj_default)) + Literal("#0")
 
 
-room_default = None
+room_vnum = Suppress(Literal("#")) + Word(nums)
+room_name = Suppress(Literal("Name")) + Regex("[^~]*") + tilde
+room_description = Suppress(Literal("Descr")) + Regex("[^~]*") + tilde
+room_flags = Suppress(Literal("Flags")) + Word(nums)
+room_flags2 = Suppress(Literal("Flags2")) + Word(nums)
+room_sector = Suppress(Literal("Sector")) + Word(nums)
+desc_door = Group(Optional(Regex("[^~]*"))) + tilde + Group(Optional(Regex("[^~]*"))) +  tilde
+room_door = Suppress(Literal("Door")) + Word(nums) + Word(nums) + Word(nums) + Word(nums) + Word(nums) + Word(nums) + Suppress(newline) + desc_door
 
-room_parser = Literal("#ROOMDATA") + OneOrMore(Group(room_default)) + Literal("#0")
+numeric = Optional(Literal("-")) + Word(nums)
+
+room_reset = Suppress(Literal("Reset")) + Word(alphas) + numeric + numeric + numeric
+
+room_options = Optional(room_name) &\
+               Optional(room_flags2) &\
+               Optional(room_flags) &\
+               Optional(room_sector) &\
+               Optional(room_description) &\
+               ZeroOrMore(room_reset) &\
+               ZeroOrMore(Group(room_door).setResultsName("doors")) 
+
+
+room_default = room_vnum + Group(room_options) + end
+
+room_parser = Literal("#ROOMDATA") + OneOrMore(room_default) + Literal("#0")
 
 area_parser = area_start + area_name  + area_repop + area_repop_rate + area_clan_zone + area_builders + area_revisions + area_vnums\
-            + area_canquit + area_open + area_home + area_quest_exempt + area_approval + area_event_exempt + area_end 
+            + area_canquit + area_open + area_home + area_quest_exempt + area_approval + area_event_exempt + end 
 
-area_parser = Group(area_parser) + Group(mob_parser) + Group(obj_parser) + Group(room_parser)
+area_parser = Group(area_parser) + Group(mob_parser) + Group(obj_parser) + Group(room_parser) + ending
 
 with open("raven.are") as f:
   input_string = f.read()
  
   try:
     result =  area_parser.parseString(input_string, parseAll=True)
-    print("== area ==")
-    for i,k  in result.area.items():
-      print(i,k)
+    #print("== area ==")
+    #for i,k  in result.area.items():
+    #  print(i,k)
 
     #print("== mobs ==")
     #for i,k in result.mob_list.items():

@@ -1,6 +1,7 @@
 #/usr/bin/python3
 
 from pyparsing import *
+import pprint
 import argparse
 import re
 
@@ -95,7 +96,7 @@ mob_gdod = Suppress(Literal("GDod")) + Word(nums)
 mob_gpar = Suppress(Literal("GPar")) + Word(nums)
 
 mob_options =   Group(
-                Optional(mob_description) &\
+                Optional(mob_description.setResultsName("description")) &\
                 Optional(mob_avngr) &\
                 Optional(mob_amax) & \
                 Optional(mob_altv) &\
@@ -150,9 +151,9 @@ mob_options =   Group(
                 Optional(mob_shopU10) &\
                 Optional(mob_shopCS))
 
-mob_default = mob_vnum + Group(mob_name + mob_short + mob_long & Group(mob_options)) + end 
+mob_default = mob_vnum.setParseAction(tokenMap(int)) + Group(mob_name.setResultsName('name') + mob_short + mob_long & Group(mob_options)) + end 
 
-mob_parser = Literal("#MOBDATA") + ZeroOrMore(mob_default) + Literal("#0")
+mob_parser = Suppress(Literal("#MOBDATA")) + ZeroOrMore(mob_default) + Suppress(Literal("#0"))
 
 obj_vnum = Suppress(Literal("#")) + Word(nums)
 obj_name = Suppress(Literal("Name")) + Regex("[^~]*") + tilde
@@ -197,12 +198,12 @@ obj_options = Optional(obj_type) &\
               Optional(obj_usespell) &\
               ZeroOrMore(obj_extradescr)
 
-obj_default = obj_vnum + Group(obj_name + obj_short + obj_description & Group(obj_options)) + end
+obj_default = obj_vnum.setParseAction(tokenMap(int)) + Group(obj_name + obj_short + obj_description & Group(obj_options)) + end
 
-obj_parser = Literal("#OBJDATA") + ZeroOrMore(Group(obj_default)) + Literal("#0")
+obj_parser = Suppress(Literal("#OBJDATA")) + ZeroOrMore(Group(obj_default)) + Suppress(Literal("#0"))
 
 
-room_vnum = Suppress(Literal("#")) + Word(nums)
+room_vnum = Suppress(Literal("#")) + Word(nums).setParseAction(tokenMap(int))
 room_name = Suppress(Literal("Name")) + Regex("[^~]*") + tilde
 room_description = Suppress(Literal("Descr")) + Regex("[^~]*") + tilde
 room_movedir = Suppress(Literal("Move_dir")) + Word(nums)
@@ -210,39 +211,48 @@ room_extradescription =  Suppress(Literal("ExtraDescr")) + Regex("[^~]*",flags=r
 room_movemess = Suppress(Literal("Movemess")) + multi_line_txt + tilde
 room_flags = Suppress(Literal("Flags")) + Word("-"+nums)
 room_flags2 = Suppress(Literal("Flags2")) + Word("-"+nums)
-room_sector = Suppress(Literal("Sector")) + Word(nums)
-desc_door = Group(Optional(Regex("[^~]*"))) + tilde + Group(Optional(Regex("[^~]*"))) +  tilde
-room_door = Suppress(Literal("Door")) + Word(nums) + Word(nums) + Word(nums) + Word(nums) + Word(nums) + Word(nums) + Suppress(newline) + desc_door
+room_sector = Suppress(Literal("Sector")) + Word(nums).setParseAction(tokenMap(int))
+desc_door = Optional(Regex("[^~]*")) + tilde + Optional(Regex("[^~]*")) +  tilde
+room_door = Suppress(Literal("Door")) + Word(nums).setParseAction(tokenMap(int))\
+        + Word(nums).setParseAction(tokenMap(int)) + Word(nums).setParseAction(tokenMap(int))\
+        + Word(nums).setParseAction(tokenMap(int)) + Word(nums).setParseAction(tokenMap(int))\
+        + Word(nums).setParseAction(tokenMap(int))  + Suppress(newline) + Group(desc_door)
 room_ascii = Suppress(Literal("Ascii")) + Regex(".*")
 room_color = Suppress(Literal("Color")) + Word(nums)
 
-numeric = Optional(Literal("-")) + Word(nums)
+#numeric = Optional(Literal("-")) +
+numeric = Word("-" + nums)
 
-room_reset = Suppress(Literal("Reset")) + Word(alphas) + numeric + numeric + numeric
+room_reset = Suppress(Literal("Reset")) + Word(alphas) + numeric.setParseAction(tokenMap(int)) + numeric.setParseAction(tokenMap(int))\
+        + numeric.setParseAction(tokenMap(int))
 
-room_options = Optional(room_name) &\
-               Optional(room_flags2) &\
-               Optional(room_flags) &\
-               Optional(room_sector) &\
-               Optional(room_description) &\
-               ZeroOrMore(room_reset) &\
-               Optional(room_movedir) &\
-               Optional(room_ascii) &\
-               Optional(room_color) &\
-               Optional(room_movemess) &\
-               ZeroOrMore(room_extradescription) &\
-               ZeroOrMore(Group(room_door).setResultsName("doors")) 
+room_options = Optional(room_name.setResultsName('name')) &\
+               Optional(room_flags2.setResultsName('flags2*')) &\
+               Optional(room_flags.setResultsName('flags*')) &\
+               Optional(room_sector.setResultsName('sector')) &\
+               Optional(room_description.setResultsName('description')) &\
+               ZeroOrMore(room_reset.setResultsName('reset*')) &\
+               Optional(room_movedir.setResultsName('movedir')) &\
+               Optional(room_ascii.setResultsName('ascii')) &\
+               Optional(room_color.setResultsName('color')) &\
+               Optional(room_movemess.setResultsName('movemessage')) &\
+               ZeroOrMore(room_extradescription.setResultsName('extradescription*')) &\
+               ZeroOrMore(room_door.setResultsName("doors*"))
 
 
-room_default = room_vnum + Group(room_options) + end
+room_default = Group(room_vnum.setResultsName("vnum*") + room_options) + end
 
-room_parser = Literal("#ROOMDATA") + ZeroOrMore(Group(room_default)) + Literal("#0")
+room_parser = Suppress(Literal("#ROOMDATA")) + ZeroOrMore(room_default) + Suppress(Literal("#0"))
 
 area_parser = area_start + area_name  + area_repop + Optional(area_repop_rate) + Optional(area_sczone) + Optional(area_clan_zone) + area_builders + area_revisions + area_vnums\
             + area_canquit + area_open + area_home + Optional(area_quest_exempt) + Optional(area_approval) + Optional(area_event_exempt) + end 
 
 area_parser = Group(area_parser).setResultsName("area") + Group(mob_parser).setResultsName("mobs") +\
         Group(obj_parser).setResultsName("objects") + Group(room_parser).setResultsName("rooms") + Suppress(ending)
+
+
+rooms_dict = {}
+
 
 def main():
     parser = argparse.ArgumentParser(description='process everwar area file')
@@ -256,15 +266,22 @@ def main():
  
     try:
        result =  area_parser.parseString(input_string, parseAll=True)
-       print("== area ==")
-       for i  in result.keys():
-         print(i)
 
-       #print("== mobs ==")
-       #for i,k in result.mob_list.items():
-       #  print(i,k)
-    
-       #print(result.dump())
+       rr = result.asDict()
+       for i in rr['rooms']:
+           vnum = i['vnum'][0][0]
+
+           if 'sector' in i:
+               rooms_dict[vnum] = {'sector' : i['sector'][0] }
+           else:
+               rooms_dict[vnum] = {'sector' : 0 }
+
+           if 'doors' in i:
+               print(i['doors'])
+
+       rp = pprint.PrettyPrinter(indent=4)
+       rp.pprint(rr)
+
     except ParseException as pe:
        print(pe.markInputline())
        print(pe)

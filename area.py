@@ -1,8 +1,10 @@
 #/usr/bin/python3
 
 from pyparsing import *
-import pprint
+
 import argparse
+import json
+import os
 import re
 
 tilde = Suppress(Literal("~"))
@@ -220,7 +222,6 @@ room_door = Suppress(Literal("Door")) + Word(nums).setParseAction(tokenMap(int))
 room_ascii = Suppress(Literal("Ascii")) + Regex(".*")
 room_color = Suppress(Literal("Color")) + Word(nums)
 
-#numeric = Optional(Literal("-")) +
 numeric = Word("-" + nums)
 
 room_reset = Suppress(Literal("Reset")) + Word(alphas) + numeric.setParseAction(tokenMap(int)) + numeric.setParseAction(tokenMap(int))\
@@ -244,47 +245,86 @@ room_default = Group(room_vnum.setResultsName("vnum*") + room_options) + end
 
 room_parser = Suppress(Literal("#ROOMDATA")) + ZeroOrMore(room_default) + Suppress(Literal("#0"))
 
-area_parser = area_start + area_name  + area_repop + Optional(area_repop_rate) + Optional(area_sczone) + Optional(area_clan_zone) + area_builders + area_revisions + area_vnums\
-            + area_canquit + area_open + area_home + Optional(area_quest_exempt) + Optional(area_approval) + Optional(area_event_exempt) + end 
+area_parser = area_start + area_name  + area_repop + Optional(area_repop_rate) + Optional(area_sczone) +\
+        Optional(area_clan_zone) + area_builders + area_revisions + area_vnums\
+            + area_canquit + area_open + area_home + Optional(area_quest_exempt) +\
+            Optional(area_approval) + Optional(area_event_exempt) +\
+            end 
 
-area_parser = Group(area_parser).setResultsName("area") + Group(mob_parser).setResultsName("mobs") +\
-        Group(obj_parser).setResultsName("objects") + Group(room_parser).setResultsName("rooms") + Suppress(ending)
-
+area_parser = Group(area_parser).setResultsName("area") +\
+        Group(mob_parser).setResultsName("mobs") +\
+        Group(obj_parser).setResultsName("objects") +\
+        Group(room_parser).setResultsName("rooms") +\
+        Suppress(ending)
 
 rooms_dict = {}
 
+def cvd(getdir):
+    dirlist = ['north','east','south','west','up','down']
+    return dirlist[getdir]
 
-def main():
-    parser = argparse.ArgumentParser(description='process everwar area file')
-    parser.add_argument('area', type=str)
-
-    args = parser.parse_args()
-
-
-    with open(args.area) as f:
-       input_string = f.read()
- 
+def parse_area(stringy):
     try:
-       result =  area_parser.parseString(input_string, parseAll=True)
+       result =  area_parser.parseString(stringy, parseAll=True)
 
        rr = result.asDict()
        for i in rr['rooms']:
            vnum = i['vnum'][0][0]
+           rooms_dict[vnum] = {}
 
            if 'sector' in i:
-               rooms_dict[vnum] = {'sector' : i['sector'][0] }
+               rooms_dict[vnum]['sector'] = i['sector'][0]
            else:
-               rooms_dict[vnum] = {'sector' : 0 }
+               rooms_dict[vnum]['sector'] = 0
 
            if 'doors' in i:
-               print(i['doors'])
-
-       rp = pprint.PrettyPrinter(indent=4)
-       rp.pprint(rr)
+               rooms_dict[vnum]['exits'] = {}
+               for j in i['doors']:
+                   rooms_dict[vnum]['exits'][cvd(j[0])] = j[3]
 
     except ParseException as pe:
        print(pe.markInputline())
        print(pe)
+    
+
+
+def main():
+    parser = argparse.ArgumentParser(description='process everwar area file')
+    parser.add_argument('area', help="Area file or list of areas", type=str)
+    parser.add_argument('output', help="JSON output", type=str)
+
+    args = parser.parse_args()
+
+    play_area_file = "playarea.lst"
+    help_file = "help.are"
+    eof = "$"
+
+
+    if play_area_file in args.area:
+        with open(args.area) as f: 
+            dir_path = os.path.dirname(f.name)
+            print("Opening ", args.area)
+
+            while 1:
+                file_name = (f.readline()).strip()
+
+                if file_name == eof:
+                   break;
+
+                if file_name == help_file:
+                   continue 
+           
+                with open(os.path.join(dir_path, file_name)) as g:
+                    print("Processing: ", file_name)
+                    parse_area(g.read())
+            
+    else:
+        with open(args.area) as f:
+           parse_area(f.read())
+ 
+    with open(args.output, "w") as f:
+       json.dump(rooms_dict, f, indent=4)
+
 
 if __name__ == "__main__":
     main()

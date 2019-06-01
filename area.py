@@ -257,15 +257,18 @@ area_parser = Group(area_parser).setResultsName("area") +\
         Group(room_parser).setResultsName("rooms") +\
         Suppress(ending)
 
-rooms_dict = {}
-
 def cvd(getdir):
     dirlist = ['north','east','south','west','up','down']
     return dirlist[getdir]
 
-def parse_area(stringy):
+def parse_file(stringy):
+    return area_parser.parseString(stringy, parseAll=True)
+
+def parse_area_rooms(stringy):
+    rooms_dict = {}
+    
     try:
-       result =  area_parser.parseString(stringy, parseAll=True)
+       result = parse_file(stringy)
 
        rr = result.asDict()
        for i in rr['rooms']:
@@ -281,29 +284,53 @@ def parse_area(stringy):
                rooms_dict[vnum]['exits'] = {}
                for j in i['doors']:
                    rooms_dict[vnum]['exits'][cvd(j[0])] = j[3]
-
+      
     except ParseException as pe:
        print(pe.markInputline())
        print(pe)
+
+    return rooms_dict
+
+def parse_area_objects(stringy):
     
+    try: 
+        result = parse_file(stringy)
+        rr = result.asDict()
+
+        print(rr['objects'])
+    
+        return rr['objects']
+    except:
+        return {}
+
+    
+def parse_area(data, process_type):
+
+    if process_type == 'objects':
+        return parse_area_objects(data)
+    else:
+        return parse_area_rooms(data)
 
 
 def main():
     parser = argparse.ArgumentParser(description='process everwar area file')
     parser.add_argument('area', help="Area file or list of areas", type=str)
     parser.add_argument('output', help="JSON output", type=str)
-
+    parser.add_argument('--type', choices=['rooms','objects','mobs'], help="JSON output type", type=str, default='rooms')
+    
     args = parser.parse_args()
 
     play_area_file = "playarea.lst"
     help_file = "help.are"
     eof = "$"
-
-
+    data = {}
+    
+    print("Processing for " + args.type)
+ 
     if play_area_file in args.area:
-        with open(args.area) as f: 
+        with open(args.area, "r") as f: 
             dir_path = os.path.dirname(f.name)
-            print("Opening ", args.area)
+            print("Opening " + args.area)
 
             while 1:
                 file_name = (f.readline()).strip()
@@ -315,16 +342,15 @@ def main():
                    continue 
            
                 with open(os.path.join(dir_path, file_name)) as g:
-                    print("Processing: ", file_name)
-                    parse_area(g.read())
+                    print("Processing: " + file_name)
+                    data = parse_area(g.read(), args.type)
             
     else:
-        with open(args.area) as f:
-           parse_area(f.read())
- 
+        with open(args.area, "r") as f:
+            data = parse_area(f.read(), args.type)
+             
     with open(args.output, "w") as f:
-       json.dump(rooms_dict, f, indent=4)
-
+        json.dump(data, f, indent=4)
 
 if __name__ == "__main__":
     main()

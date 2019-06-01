@@ -181,16 +181,16 @@ obj_maxinworld = Suppress(Literal("Maxinworld")) + Word(nums)
 obj_affect = Suppress(Literal("Affect")) + OneOrMore(Word("-"+nums))
 obj_values = Suppress(Literal("Values")) + OneOrMore(Word("-"+nums))
 
-obj_options = Optional(obj_type) &\
-              Optional(obj_extra2) &\
-              Optional(obj_extra) &\
-              Optional(obj_oracenum) &\
-              Optional(obj_orace) &\
-              Optional(obj_wear) &\
-              Optional(obj_weight) &\
-              Optional(obj_usespell) &\
-              Optional(obj_recharge) &\
-              Optional(obj_cost) &\
+obj_options = Optional(obj_type.setResultsName('type')) &\
+              Optional(obj_extra2.setResultsName('extra2')) &\
+              Optional(obj_extra.setResultsName('extra')) &\
+              Optional(obj_oracenum.setResultsName('racenum')) &\
+              Optional(obj_orace.setResultsName('race')) &\
+              Optional(obj_wear.setResultsName('wear')) &\
+              Optional(obj_weight.setResultsName('weight')) &\
+              Optional(obj_usespell.setResultsName('spell')) &\
+              Optional(obj_recharge.setResultsName('recharge')) &\
+              Optional(obj_cost.setResultsName('cost')) &\
               Optional(obj_timer) &\
               Optional(obj_maxinworld) &\
               Optional(obj_maxinroom) &\
@@ -200,7 +200,7 @@ obj_options = Optional(obj_type) &\
               Optional(obj_usespell) &\
               ZeroOrMore(obj_extradescr)
 
-obj_default = obj_vnum.setParseAction(tokenMap(int)) + Group(obj_name + obj_short + obj_description & Group(obj_options)) + end
+obj_default = obj_vnum.setParseAction(tokenMap(int)).setResultsName('vnum') + obj_name.setResultsName('name') + obj_short.setResultsName('short') + obj_description.setResultsName('description') & obj_options + end
 
 obj_parser = Suppress(Literal("#OBJDATA")) + ZeroOrMore(Group(obj_default)) + Suppress(Literal("#0"))
 
@@ -292,16 +292,19 @@ def parse_area_rooms(stringy):
     return rooms_dict
 
 def parse_area_objects(stringy):
-    
+    objs_dict = {} 
     try: 
         result = parse_file(stringy)
         rr = result.asDict()
 
-        print(rr['objects'])
-    
-        return rr['objects']
-    except:
-        return {}
+        for i in rr['objects']:
+            print(i['vnum'][0])
+
+    except ParseException as pe:
+        print(pe.markInputLine())
+        print(pe)
+
+    return objs_dict
 
     
 def parse_area(data, process_type):
@@ -330,9 +333,8 @@ def main():
     if play_area_file in args.area:
         with open(args.area, "r") as f: 
             dir_path = os.path.dirname(f.name)
-            print("Opening " + args.area)
 
-            while 1:
+            while True:
                 file_name = (f.readline()).strip()
 
                 if file_name == eof:
